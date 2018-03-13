@@ -25,3 +25,5 @@ settings.tk-multi-reviewsubmission:
   slate_logo: 'icons/review_submit_logo.png'
   codec_settings_hook: '{config}/codec_settings.py'
   location: "@apps.tk-multi-reviewsubmission.location"
+  burnin_path_template: 'reviewsubmission_burnin_nuke_file'
+  slate_logo_template: 'reviewsubmission_slate_logo_file'
