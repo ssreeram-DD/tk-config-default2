@@ -174,7 +174,7 @@ class SceneOperation(HookClass):
         templates = context.sgtk.templates
 
         template_exp = "{engine_name}_{env_name}_work_render"
-        template_name = self.parent.resolve_setting_expression(template_exp)
+        template_name = self.parent.engine.resolve_setting_expression(template_exp)
         render_temp = templates.get(template_name)
 
         return render_temp
