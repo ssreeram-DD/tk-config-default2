@@ -41,17 +41,7 @@ class MayaPublishFilesCustomPlugin(HookBaseClass):
         desc = super(MayaPublishFilesCustomPlugin, self).description
 
         return desc + "<br><br>" + """
-        After publishing, if a version number is detected in the file, the file
-        will automatically be saved to the next incremental version number.
-        For example, <code>filename.v001.ext</code> will be published and copied
-        to <code>filename.v002.ext</code>
-
-        If the next incremental version of the file already exists on disk, the
-        validation step will produce a warning, and a button will be provided in
-        the logging output which will allow saving the session to the next
-        available version number prior to publishing.
-
-        <br><br><i>NOTE: any amount of version number padding is supported.</i>
+        Validation checks before a file is published.
         """
 
     def _extra_nodes(self, children):
@@ -66,7 +56,7 @@ class MayaPublishFilesCustomPlugin(HookBaseClass):
                                   "action_show_more_info": {
                                       "label": "Show Info",
                                       "tooltip": "Show the extra nodes",
-                                      "text": "Extra nodes:\n{}".format(node_names)
+                                      "text": "Nodes outside TRACK_GEO:\n{}".format(node_names)
                                   }
                               }
                               )
