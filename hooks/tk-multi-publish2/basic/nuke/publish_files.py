@@ -34,16 +34,19 @@ class NukePublishFilesCustomPlugin(HookBaseClass):
 
         :return: True if yes false otherwise
         """
+        # get the current engine
         engine = sgtk.platform.current_engine()
+        # context from engine
         context = engine.context
         entity = context.entity
 
         sg_entity_type = context.entity["type"]
         sg_filters = [["id", "is", entity["id"]]]
-        fields = ["cut_in", "cut_out", "head_in", "head_out"]
+        fields = ["cut_in", "cut_out"]
 
+        # get the field information from shotgun based on Shot
         data = engine.shotgun.find_one(sg_entity_type, filters=sg_filters, fields=fields)
-
+        # compare if the frame range set at root level is same as the shogun cut_in, cut_out
         root = nuke.Root()
         if root.firstFrame() != data["cut_in"] or root.lastFrame() != data["cut_out"]:
             self.logger.error("Frame range not synced with Shotgun.")
@@ -57,6 +60,7 @@ class NukePublishFilesCustomPlugin(HookBaseClass):
         :return: True if yes false otherwise
         """
         write_nodes = ""
+        # get all write nodes
         write = nuke.allNodes('Write')
         if write:
             for item in range(len(write)):
@@ -96,6 +100,7 @@ class NukePublishFilesCustomPlugin(HookBaseClass):
         # For all the nodes present in the script, check for 'file' parameter.
         # If its populated, get the file path and check validity.
         for index, fileNode in enumerate(nuke.allNodes(), 0):
+            # if the node has 'file' parameter, check if the file path is valid
             if self._check_for_knob(fileNode, 'file'):
                 node_name = nuke.allNodes()[index]['name'].value()
                 node_file_path = fileNode['file'].value()
