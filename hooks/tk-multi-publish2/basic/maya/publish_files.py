@@ -159,7 +159,7 @@ class MayaPublishFilesCustomPlugin(HookBaseClass):
         if main_cam:
             if len(main_cam) > 1:
                 # Checking if more than one CAM present
-                self.logger.error("More the one camera detected.")
+                self.logger.error("More the one camera detected. Only CAM should be present.")
                 # cmds.confirmDialog(title="ERROR!", message="More the one camera detected.", button=['Ok'])
                 return False
             elif main_cam[0] != camera_name:
