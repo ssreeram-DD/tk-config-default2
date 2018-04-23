@@ -162,7 +162,6 @@ class NukePublishFilesDDValidationPlugin(HookBaseClass):
 
         for index, fileNode in enumerate(related_nodes, 0):
             if (fileNode.Class() in node_type_list) and self._check_for_knob(fileNode, 'file'):
-                print fileNode.Class()
                 node_name = related_nodes[index].name()
                 node_file_path = fileNode['file'].value()
                 sg_data = sgtk.util.find_publish(publisher.sgtk, [node_file_path])
