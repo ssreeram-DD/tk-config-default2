@@ -122,7 +122,8 @@ class NukePublishFilesDDValidationPlugin(HookBaseClass):
 
     def _collect_nodes_in_graph(self, nodes):
         """
-        For each WriteTank node, traverse the node graph and get the associated nodes
+        For each WriteTank node, traverse the node graph and get the associated nodes.
+
         :param nodes: WriteTank node
         :return: list of associated nodes
         """
@@ -154,12 +155,14 @@ class NukePublishFilesDDValidationPlugin(HookBaseClass):
         unpublished = ""
 
         # Collect all the nodes associated with a write node
-        # For all the nodes present in the write node graph, check for 'file' knob.
+        # For all the read, readgeo and camera nodes present in the write node graph, check for 'file' knob.
         # If its populated, get the file path.
         related_nodes = self._collect_nodes_in_graph([item.properties['node']])
+        node_type_list = ["Read", "ReadGeo2", "Camera2"]
 
         for index, fileNode in enumerate(related_nodes, 0):
-            if self._check_for_knob(fileNode, 'file'):
+            if (fileNode.Class() in node_type_list) and self._check_for_knob(fileNode, 'file'):
+                print fileNode.Class()
                 node_name = related_nodes[index].name()
                 node_file_path = fileNode['file'].value()
                 sg_data = sgtk.util.find_publish(publisher.sgtk, [node_file_path])
@@ -234,6 +237,7 @@ class NukePublishFilesDDValidationPlugin(HookBaseClass):
         :returns: True if item is valid, False otherwise.
         """
         status = True
+        # Segregating the checks, specifically for write nodes and for general nuke script
         if 'node' in item.properties.keys():
             status = self._bbsize(item) and status
             status = self._read_and_camera_file_paths(item) and status
