@@ -150,14 +150,7 @@ class NukePublishFilesDDValidationPlugin(HookBaseClass):
         valid_paths = [show, os.path.join(os.environ['DD_ROOT'], 'library')]
         paths = ""
 
-        # Published path locations for show, seq and shot
-        published_paths = [os.path.join(show, 'SHARED')]
-        if 'Sequence' in item.properties['fields'].keys():
-            seq = os.path.join(show, item.properties['fields']['Sequence'])
-            published_paths.append(os.path.join(seq, 'SHARED'))
-        if 'Shot' in item.properties['fields'].keys():
-            shot = os.path.join(seq, item.properties['fields']['Shot'])
-            published_paths.append(os.path.join(shot, 'SHARED'))
+        publisher = self.parent
         unpublished = ""
 
         # Collect all the nodes associated with a write node
@@ -169,10 +162,12 @@ class NukePublishFilesDDValidationPlugin(HookBaseClass):
             if self._check_for_knob(fileNode, 'file'):
                 node_name = related_nodes[index].name()
                 node_file_path = fileNode['file'].value()
+                sg_data = sgtk.util.find_publish(publisher.sgtk, [node_file_path])
+                print sg_data, "for", node_file_path
                 if node_file_path:
                     # Check if the file(s) loaded are published
                     # If they are not published, they should at least be from valid locations
-                    if any(path in node_file_path for path in published_paths):
+                    if sg_data:
                         continue
                     elif any(path in node_file_path for path in valid_paths):
                         unpublished += "\n" + node_name + "  --->  " + node_file_path
