@@ -163,7 +163,6 @@ class NukePublishFilesDDValidationPlugin(HookBaseClass):
                 node_name = related_nodes[index].name()
                 node_file_path = fileNode['file'].value()
                 sg_data = sgtk.util.find_publish(publisher.sgtk, [node_file_path])
-                print sg_data, "for", node_file_path
                 if node_file_path:
                     # Check if the file(s) loaded are published
                     # If they are not published, they should at least be from valid locations
