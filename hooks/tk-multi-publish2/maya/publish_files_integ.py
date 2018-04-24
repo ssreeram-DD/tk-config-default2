@@ -157,6 +157,8 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
         connections = cmds.listConnections(camshape + '.imagePlane', source=True, type='imagePlane')
         if not connections:
             self.logger.error("Image plane not attached to CAM.")
+            return False
+        return True
 
     def _camera_naming(self, group_nodes):
         """Checks the naming of the camera.
@@ -250,12 +252,14 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
         :param item: Item to process
         :returns: True if item is valid, False otherwise.
         """
+        print item.properties
         all_dag_nodes = cmds.ls(dag=True, sn=True)
         groups = [g for g in all_dag_nodes if self._is_group(g)]
         status = True
         status = self._node_naming(_group_nodes, groups) and status
         status = self._camera_naming(_group_nodes) and status
 
+        print "status", status
         if not status:
             return status
 
