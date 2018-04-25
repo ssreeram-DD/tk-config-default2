@@ -49,13 +49,22 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
         """
 
     def _build_dict(self, seq, key):
+        """
+        Creating a dictionary based on a key.
+
+        :param seq: list of dictionaries
+        :param key: dictionary key from which to create the dictionary
+        :return: dict with information arranged based on that particular key
+        """
         return dict((d[key], dict(d, index=index)) for (index, d) in enumerate(seq))
 
     def _framerange_of_sequence(self, item):
         """
+        Since users have the option to render only a subset of frames,
+        adding validation to check if the full frame range is being published.
 
-        :param item:
-        :return:
+        :param item: Item to process
+        :return: True if yes false otherwise
         """
         lss_path = item.properties['path']
         lss_data = frangetools.getSequence(lss_path)
@@ -288,6 +297,7 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
         elif item.properties['is_sequence']:
             sequences = self._framerange_of_sequence(item)
             status = sequences and status
+
         if not status:
             return status
 
