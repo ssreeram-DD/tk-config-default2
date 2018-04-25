@@ -49,11 +49,18 @@ class NukePublishFilesDDValidationPlugin(HookBaseClass):
         # building a dictionary from key value for the ease of fetching data.
         info_by_path = self._build_dict(lss_data, key="path")
         missing_frames = info_by_path.get(lss_path)['missing_frames']
+        root = nuke.Root()
 
-        if not missing_frames:
+        if missing_frames:
             self.logger.error("Incomplete renders! All the frames are not rendered.")
             return False
-        return True
+        else:
+            first_rendered_frame = info_by_path.get(lss_path)['frame_range'][0]
+            last_rendered_frame = info_by_path.get(lss_path)['frame_range'][1]
+            if (first_rendered_frame != root.firstFrame()) or (last_rendered_frame != root.lastFrame()):
+                self.logger.error("Incomplete renders! All the frames are not rendered.")
+                return False
+            return True
 
 
     def _sync_frame_range(self, item):
