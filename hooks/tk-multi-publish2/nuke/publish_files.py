@@ -51,6 +51,8 @@ class NukePublishFilesDDValidationPlugin(HookBaseClass):
         missing_frames = info_by_path.get(lss_path)['missing_frames']
         root = nuke.Root()
 
+        # If there are no missing frames, then checking if the first and last frames match with root first and last
+        # Checking with root because _sync_frame_range() will ensure root is up to date with shotgun
         if missing_frames:
             self.logger.error("Incomplete renders! All the frames are not rendered.")
             return False
