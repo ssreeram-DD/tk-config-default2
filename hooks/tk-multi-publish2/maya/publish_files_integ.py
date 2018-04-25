@@ -15,16 +15,16 @@ import sgtk
 
 HookBaseClass = sgtk.get_hook_baseclass()
 
-_group_nodes = ['WORLDSCALE',
-                'SET_TO_WORLD',
-                'TRACK_GEO']
+GROUP_NODES = ['WORLDSCALE',
+               'SET_TO_WORLD',
+               'TRACK_GEO']
 
-_camera_name = 'CAM'
+CAMERA_NAME = 'CAM'
 
-_default_cameras = ['persp',
-                    'top',
-                    'front',
-                    'side']
+DEFAULT_CAMERAS = ['persp',
+                   'top',
+                   'front',
+                   'side']
 
 
 class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
@@ -45,13 +45,16 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
         Validation checks before a file is published.
         """
 
-    def _extra_nodes(self, children):
+    def _extra_nodes_outside_track_geo(self):
         """
         Check for nodes, apart from groups and camera lying outside of TRACK_GEO node
-        :param children:
         :return:
         """
-        extras = list(set(cmds.ls(tr=True, dag=True)) - set(_group_nodes) - set(cmds.listCameras()) - set(children))
+        children = cmds.listRelatives('TRACK_GEO', c=True)
+        if children:
+            extras = list(set(cmds.ls(tr=True, dag=True)) - set(GROUP_NODES) - set(cmds.listCameras()) - set(children))
+        else:
+            extras = list(set(cmds.ls(tr=True, dag=True)) - set(GROUP_NODES) - set(cmds.listCameras()))
 
         if extras:
             node_names = ""
@@ -69,38 +72,41 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
             return False
         return True
 
-    def _locked_channels(self, nodes):
+    def _track_geo_locked_channels(self):
         """Check for locked channels for all nodes under the group TRACK_GEO.
             :param:
                 nodes: list of nodes under TRACK_GEO
         """
-        locked = ""
-        for node in nodes:
-            # For each node, list out attributes which are locked
-            lock_per_node = cmds.listAttr(node, l=True)
-            if lock_per_node:
-                locked += "\n" + node + "  --->  " + ", ".join(lock_per_node)
-        # If there are locked channels, error message with node name and locked attribute name(s).
-        if locked:
-            self.logger.error("Locked channels detected.",
-                              extra={
-                                  "action_show_more_info": {
-                                      "label": "Show Info",
-                                      "tooltip": "Show the node and locked channels",
-                                      "text": "Locked channels:\n{}".format(locked)
+        children = cmds.listRelatives('TRACK_GEO', c=True)
+        if children:
+            locked = ""
+            for node in children:
+                # For each node, list out attributes which are locked
+                lock_per_node = cmds.listAttr(node, l=True)
+                if lock_per_node:
+                    locked += "\n" + node + "  --->  " + ", ".join(lock_per_node)
+            # If there are locked channels, error message with node name and locked attribute name(s).
+            if locked:
+                self.logger.error("Locked channels detected.",
+                                  extra={
+                                      "action_show_more_info": {
+                                          "label": "Show Info",
+                                          "tooltip": "Show the node and locked channels",
+                                          "text": "Locked channels:\n{}".format(locked)
+                                      }
                                   }
-                              }
-                              )
-            return False
-        return self._extra_nodes(nodes)
+                                  )
+                return False
+            return True
+        return True
 
-    def _track_geo_child_naming(self, track_geo):
+    def _track_geo_child_naming(self):
         """Checks if the name of nodes under TRACK_GEO are prefixed with 'integ_'.
             :param:
                 track_geo: nodes under TRACK_GEO
         """
         # Nodes under TRACK_GEO group
-        children = cmds.listRelatives(track_geo, c=True)
+        children = cmds.listRelatives('TRACK_GEO', c=True)
         error_names = ""
         # if there are nodes under TRACK_GEO, check for one without prefix "integ_"
         if children:
@@ -119,12 +125,7 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
                               }
                               )
             return False
-
-        if children:
-            # if there are nodes under TRACK_GEO, check for locked channels
-            return self._locked_channels(children)
-        else:
-            return True
+        return True
 
     def _check_hierarchy(self, group_nodes):
         """Checks the hierarchy of group nodes in the scene.
@@ -134,7 +135,7 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
         for name in range(len(group_nodes) - 1):
             # Listing children of group nodes
             children = cmds.listRelatives(group_nodes[name], c=True)
-            # group_nodes is arranged in hierarchial order i.e. the next node should be the child of previous
+            # group_nodes is arranged in hierarchical order i.e. the next node should be the child of previous
             if children and (group_nodes[name + 1] in children):
                 if name == 'SET_TO_WORLD' and 'CAM' in children:
                     continue
@@ -150,17 +151,17 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
                                   }
                                   )
                 return False
-        return self._track_geo_child_naming(group_nodes[-1])
+        return True
 
-    def _connected_image_plane(self, camera):
-        camshape = cmds.listRelatives(camera, s=True, c=True)[0]
+    def _connected_image_plane(self):
+        camshape = cmds.listRelatives(CAMERA_NAME, s=True, c=True)[0]
         connections = cmds.listConnections(camshape + '.imagePlane', source=True, type='imagePlane')
         if not connections:
             self.logger.error("Image plane not attached to CAM.")
             return False
         return True
 
-    def _camera_naming(self, group_nodes):
+    def _camera_naming(self):
         """Checks the naming of the camera.
             :param:
                 group_nodes: The list of nodes that should be in the scene. This will be
@@ -169,58 +170,57 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
         # Look for all the cameras present in the scene
         all_cameras = cmds.listCameras()
         # Remove the default_cameras from the list
-        main_cam = list(set(all_cameras) - set(_default_cameras))
+        main_cam = list(set(all_cameras) - set(DEFAULT_CAMERAS))
         if main_cam:
             if len(main_cam) > 1:
                 # Checking if more than one CAM present
                 self.logger.error("More the one camera detected. Only CAM should be present.")
                 return False
-            elif main_cam[0] != _camera_name:
+            elif main_cam[0] != CAMERA_NAME:
                 # Validating camera name
                 self.logger.error("Incorrect camera name! Should be CAM.")
                 return False
         else:
             self.logger.error("Camera (CAM) not present in the scene.")
             return False
-        return self._connected_image_plane(main_cam[0])
+        return True
 
-    def _node_naming(self, group_nodes, groups):
+    def _node_naming(self, groups):
         """Checking if the established group node names have not been tampered with.
             :param:
                 group_nodes: group nodes to be present in the scene
                 groups: group nodes that are actually present
         """
         # Check for extra group nodes apart from the ones in group_nodes
-        names = ""
-        extras = list(set(groups) - set(group_nodes))
+        extras = list(set(groups) - set(GROUP_NODES))
         # check for any group nodes apart from the once mentioned
         if extras:
-            for item in extras:
-                names += "\n" + item
             self.logger.error("Incorrect naming or extra group nodes present in the scene.",
                               extra={
                                   "action_show_more_info": {
                                       "label": "Show Info",
                                       "tooltip": "Show the conflicting group nodes",
-                                      "text": "Please check the group nodes:\n{}".format(names) +
-                                              "\n\nOnly following group nodes should be present:\nWORLDSCALE \nSET_TO_WORLD \nTRACK_GEO"
+                                      "text": "Please check the group nodes:\n{}".format("\n".join(extras)) +
+                                              "\n\nOnly following group nodes should be present:\n{}".format(
+                                                  "\n".join(GROUP_NODES))
                                   }
                               }
                               )
             return False
         # check if any of the required group nodes are missing
-        elif not set(group_nodes).issubset(set(groups)):
+        elif not set(GROUP_NODES).issubset(set(groups)):
             self.logger.error("Please ensure all the group nodes are present.",
                               extra={
                                   "action_show_more_info": {
                                       "label": "Show Info",
                                       "tooltip": "Group nodes",
-                                      "text": "Following group nodes should be present:\nWORLDSCALE \nSET_TO_WORLD \nTRACK_GEO"
+                                      "text": "Following group nodes should be present:\n{}".format(
+                                          "\n".join(GROUP_NODES))
                                   }
                               }
                               )
             return False
-        return self._check_hierarchy(group_nodes)
+        return True
 
     @staticmethod
     def _is_group(node=None):
@@ -252,15 +252,18 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
         :param item: Item to process
         :returns: True if item is valid, False otherwise.
         """
-        print item.properties
         all_dag_nodes = cmds.ls(dag=True, sn=True)
         groups = [g for g in all_dag_nodes if self._is_group(g)]
-        status = True
-        status = self._node_naming(_group_nodes, groups) and status
-        status = self._camera_naming(_group_nodes) and status
 
-        print "status", status
-        if not status:
-            return status
+        nodes = self._node_naming(groups) and \
+                self._check_hierarchy(groups) and \
+                self._track_geo_child_naming() and \
+                self._track_geo_locked_channels()and \
+                self._extra_nodes_outside_track_geo()
+
+        cam = self._camera_naming() and self._connected_image_plane()
+
+        if not (nodes and cam):
+            return False
 
         return super(MayaPublishFilesDDIntegValidationPlugin, self).validate(task_settings, item)
