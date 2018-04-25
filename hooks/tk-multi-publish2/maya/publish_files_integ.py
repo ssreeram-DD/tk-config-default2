@@ -12,6 +12,9 @@ import os
 import maya.cmds as cmds
 import maya.mel as mel
 import sgtk
+from dd.runtime import api
+api.load('frangetools')
+import frangetools
 
 HookBaseClass = sgtk.get_hook_baseclass()
 
@@ -45,6 +48,26 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
         Validation checks before a file is published.
         """
 
+    def _build_dict(self, seq, key):
+        return dict((d[key], dict(d, index=index)) for (index, d) in enumerate(seq))
+
+    def _framerange_of_sequence(self, item):
+        """
+
+        :param item:
+        :return:
+        """
+        lss_path = item.properties['path']
+        lss_data = frangetools.getSequence(lss_path)
+
+        info_by_path = self._build_dict(lss_data, key="path")
+        missing_frames = info_by_path.get(lss_path)['missing_frames']
+
+        if missing_frames:
+            self.logger.error("Incomplete renders! All the frames are not rendered.")
+            return False
+        return True
+
     def _extra_nodes_outside_track_geo(self):
         """
         Check for nodes, apart from groups and camera lying outside of TRACK_GEO node
@@ -57,15 +80,12 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
             extras = list(set(cmds.ls(tr=True, dag=True)) - set(GROUP_NODES) - set(cmds.listCameras()))
 
         if extras:
-            node_names = ""
-            for node in extras:
-                node_names += "\n" + node
             self.logger.error("Nodes present outside TRACK_GEO.",
                               extra={
                                   "action_show_more_info": {
                                       "label": "Show Info",
                                       "tooltip": "Show the extra nodes",
-                                      "text": "Nodes outside TRACK_GEO:\n{}".format(node_names)
+                                      "text": "Nodes outside TRACK_GEO:\n{}".format("\n".join(extras))
                                   }
                               }
                               )
@@ -255,15 +275,20 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
         all_dag_nodes = cmds.ls(dag=True, sn=True)
         groups = [g for g in all_dag_nodes if self._is_group(g)]
 
-        nodes = self._node_naming(groups) and \
-                self._check_hierarchy(groups) and \
-                self._track_geo_child_naming() and \
-                self._track_geo_locked_channels()and \
-                self._extra_nodes_outside_track_geo()
-
-        cam = self._camera_naming() and self._connected_image_plane()
-
-        if not (nodes and cam):
-            return False
+        status = True
+        # Checks for the scene file, i.e if the item is not a sequence or a cache file
+        if item.properties['work_path_template'] == 'tk-maya_shot_work_file':
+            nodes = self._node_naming(groups) and \
+                    self._check_hierarchy(groups) and \
+                    self._track_geo_child_naming() and \
+                    self._track_geo_locked_channels()and \
+                    self._extra_nodes_outside_track_geo()
+            cam = self._camera_naming() and self._connected_image_plane()
+            status = nodes and cam and status
+        elif item.properties['is_sequence']:
+            sequences = self._framerange_of_sequence(item)
+            status = sequences and status
+        if not status:
+            return status
 
         return super(MayaPublishFilesDDIntegValidationPlugin, self).validate(task_settings, item)
