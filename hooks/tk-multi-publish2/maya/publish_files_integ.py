@@ -76,6 +76,9 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
             self.logger.error("Incomplete playblast! All the frames are not the playblast.")
             return False
         else:
+            # If there are no missing frames, checking if the start and end frames match with playblast settings.
+            # This is being directly checked with playblast settings in the scene since
+            # _sync_frame_range_with_shotgun() will ensure playblast frame range is synced with shotgun
             import pymel.core as pm
             playback_start = pm.playbackOptions(q=True, minTime=True)
             playback_end = pm.playbackOptions(q=True, maxTime=True)
@@ -89,9 +92,10 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
 
     def _sync_frame_range_with_shotgun(self, item):
         """
+        Checks whether frame range is in sync with shotgun.
 
-        :param item:
-        :return:
+        :param item: Item to process
+        :return: True if yes false otherwise
         """
         context = item.context
         entity = context.entity
@@ -103,7 +107,6 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
         # get the field information from shotgun based on Shot
         # sg_cut_in and sg_cut_out info will be on Shot entity, so skip in case this info is not present
         data = self.sgtk.shotgun.find_one(sg_entity_type, filters=sg_filters, fields=fields)
-        print data
         if "sg_head_in" not in data or "sg_tail_out" not in data:
             return True
 
@@ -126,7 +129,7 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
     def _extra_nodes_outside_track_geo(self):
         """
         Check for nodes, apart from groups and camera lying outside of TRACK_GEO node
-        :return:
+        :return: True if yes false otherwise
         """
         children = cmds.listRelatives('TRACK_GEO', c=True)
         # Subtracting group nodes, cameras and child nodes of TRACK_GEO from the list of dag nodes.
@@ -149,10 +152,12 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
             return False
         return True
 
+
     def _track_geo_locked_channels(self):
         """Check for locked channels for all nodes under the group TRACK_GEO.
             :param:
                 nodes: list of nodes under TRACK_GEO
+            :return: True if yes false otherwise
         """
         children = cmds.listRelatives('TRACK_GEO', c=True)
         if children:
@@ -177,10 +182,12 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
             return True
         return True
 
+
     def _track_geo_child_naming(self):
         """Checks if the name of nodes under TRACK_GEO are prefixed with 'integ_'.
             :param:
                 track_geo: nodes under TRACK_GEO
+            :return: True if yes false otherwise
         """
         # Nodes under TRACK_GEO group
         children = cmds.listRelatives('TRACK_GEO', c=True)
@@ -204,10 +211,12 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
             return False
         return True
 
+
     def _check_hierarchy(self, group_nodes):
         """Checks the hierarchy of group nodes in the scene.
             :param:
                 group_nodes: the list of nodes in the scene
+            :return: True if yes false otherwise
         """
         for name in range(len(group_nodes) - 1):
             # Listing children of group nodes
@@ -230,6 +239,7 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
                 return False
         return True
 
+
     def _connected_image_plane(self):
         camshape = cmds.listRelatives(CAMERA_NAME, s=True, c=True)[0]
         connections = cmds.listConnections(camshape + '.imagePlane', source=True, type='imagePlane')
@@ -238,11 +248,13 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
             return False
         return True
 
+
     def _camera_naming(self):
         """Checks the naming of the camera.
             :param:
                 group_nodes: The list of nodes that should be in the scene. This will be
                 used to check node hierarchy once camera naming is validated.
+            :return: True if yes false otherwise
         """
         # Look for all the cameras present in the scene
         all_cameras = cmds.listCameras()
@@ -262,11 +274,13 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
             return False
         return True
 
+
     def _node_naming(self, groups):
         """Checking if the established group node names have not been tampered with.
             :param:
                 group_nodes: group nodes to be present in the scene
                 groups: group nodes that are actually present
+            :return: True if yes false otherwise
         """
         # Check for extra group nodes apart from the ones in group_nodes
         extras = list(set(groups) - set(GROUP_NODES))
@@ -299,11 +313,13 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
             return False
         return True
 
+
     @staticmethod
     def _is_group(node=None):
         """Check for all the group nodes present in the scene.
             :param:
                 node: all the nodes in the scene
+            :return: True if yes false otherwise
         """
         if cmds.nodeType(node) != "transform":
             return False
@@ -318,6 +334,7 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
         else:
             return True
 
+
     def validate(self, task_settings, item):
         """
         Validates the given item to check that it is ok to publish. Returns a
@@ -329,7 +346,6 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
         :param item: Item to process
         :returns: True if item is valid, False otherwise.
         """
-        print item.properties
         all_dag_nodes = cmds.ls(dag=True, sn=True)
         groups = [g for g in all_dag_nodes if self._is_group(g)]
 
