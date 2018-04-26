@@ -73,9 +73,55 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
         missing_frames = info_by_path.get(lss_path)['missing_frames']
 
         if missing_frames:
-            self.logger.error("Incomplete renders! All the frames are not rendered.")
+            self.logger.error("Incomplete playblast! All the frames are not the playblast.")
+            return False
+        else:
+            import pymel.core as pm
+            playback_start = pm.playbackOptions(q=True, minTime=True)
+            playback_end = pm.playbackOptions(q=True, maxTime=True)
+            collected_playblast_firstframe = info_by_path.get(lss_path)['frame_range'][0]
+            collected_playblast_lastframe = info_by_path.get(lss_path)['frame_range'][1]
+            if (collected_playblast_firstframe != playback_start) or (collected_playblast_lastframe != playback_end):
+                self.logger.error("Incomplete playblast! All the frames are not in the playblast.")
+                return False
+        return True
+
+
+    def _sync_frame_range_with_shotgun(self, item):
+        """
+
+        :param item:
+        :return:
+        """
+        context = item.context
+        entity = context.entity
+
+        sg_entity_type = entity["type"]
+        sg_filters = [["id", "is", entity["id"]]]
+        fields = ["sg_head_in", "sg_tail_out"]
+
+        # get the field information from shotgun based on Shot
+        # sg_cut_in and sg_cut_out info will be on Shot entity, so skip in case this info is not present
+        data = self.sgtk.shotgun.find_one(sg_entity_type, filters=sg_filters, fields=fields)
+        print data
+        if "sg_head_in" not in data or "sg_tail_out" not in data:
+            return True
+
+        # Check if playback_start or animation_start is not in sync with shotgun
+        # Similarly if animation_start or animation_start is not in sync with shotgun
+        import pymel.core as pm
+        playback_start = pm.playbackOptions(q=True, minTime=True)
+        playback_end = pm.playbackOptions(q=True, maxTime=True)
+        animation_start = pm.playbackOptions(q=True, animationStartTime=True)
+        animation_end = pm.playbackOptions(q=True, animationEndTime=True)
+        if playback_start != data["sg_head_in"] or playback_end != data["sg_tail_out"]:
+            self.logger.error("Frame range not synced with Shotgun.")
+            return False
+        if animation_start != data["sg_head_in"] or animation_end != data["sg_tail_out"]:
+            self.logger.error("Frame range not synced with Shotgun.")
             return False
         return True
+
 
     def _extra_nodes_outside_track_geo(self):
         """
@@ -83,6 +129,8 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
         :return:
         """
         children = cmds.listRelatives('TRACK_GEO', c=True)
+        # Subtracting group nodes, cameras and child nodes of TRACK_GEO from the list of dag nodes.
+        # This is to get extra nodes present outside TRACK_GEO
         if children:
             extras = list(set(cmds.ls(tr=True, dag=True)) - set(GROUP_NODES) - set(cmds.listCameras()) - set(children))
         else:
@@ -281,6 +329,7 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
         :param item: Item to process
         :returns: True if item is valid, False otherwise.
         """
+        print item.properties
         all_dag_nodes = cmds.ls(dag=True, sn=True)
         groups = [g for g in all_dag_nodes if self._is_group(g)]
 
@@ -291,7 +340,8 @@ class MayaPublishFilesDDIntegValidationPlugin(HookBaseClass):
                     self._check_hierarchy(groups) and \
                     self._track_geo_child_naming() and \
                     self._track_geo_locked_channels()and \
-                    self._extra_nodes_outside_track_geo()
+                    self._extra_nodes_outside_track_geo() and \
+                    self._sync_frame_range_with_shotgun(item)
             cam = self._camera_naming() and self._connected_image_plane()
             status = nodes and cam and status
         elif item.properties['is_sequence']:
